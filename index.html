@@ -128,61 +128,6 @@
             margin-bottom: 15px;
             font-weight: 500;
         }
-        /* View Vault Link Styling */
-        .toggle-vault-container {
-            text-align: center;
-            margin-top: 25px;
-        }
-
-        .toggle-vault-link {
-            color: var(--text-muted);
-            text-decoration: underline;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: color 0.2s;
-        }
-
-        .toggle-vault-link:hover {
-            color: var(--accent-color);
-        }
-
-        /* Responsive Vault Table Styling */
-        .vault-table-wrapper {
-            margin-top: 20px;
-            max-height: 400px;
-            overflow-y: auto; /* Adds a scrollbar so it doesn't break page layout */
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            display: none; /* Hidden by default */
-            background-color: rgba(0, 0, 0, 0.2);
-        }
-
-        .vault-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-            text-align: left;
-        }
-
-        .vault-table th {
-            background-color: rgba(239, 68, 68, 0.1); /* Slight horror red hue */
-            color: #f87171;
-            padding: 12px;
-            position: sticky;
-            top: 0; /* Keeps headers locked at the top while scrolling */
-            border-bottom: 2px solid var(--border-color);
-            font-weight: 600;
-        }
-
-        .vault-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-main);
-        }
-
-        .vault-table tr:hover {
-            background-color: rgba(255, 255, 255, 0.03); /* Subtle row highlight */
-        }
     </style>
 </head>
 <body>
@@ -222,35 +167,6 @@
     </div>
 
     <button id="pickBtn" disabled>Summon a Random Movie</button>
-    <!-- View/Hide Vault Action Interface -->
-    <div class="toggle-vault-container">
-        <span id="toggleVaultBtn" class="toggle-vault-link">👁️ View Full Horror Vault</span>
-    </div>
-
-    <!-- Scrollable Table Container -->
-    <div id="vaultTableWrapper" class="vault-table-wrapper">
-        <table class="vault-table">
-            <thead>
-                <tr>
-                    <th>Title</th>
-                    <th>Year</th>
-                    <th>Director</th>
-                    <th>Studio</th>
-                    <th>Watched?</th>
-                </tr>
-            </thead>
-            <tbody id="vaultTableBody">
-                <!-- Rows will be dynamically injected here by JavaScript -->
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Results Display -->
-    <div id="result" class="result-box">
-        <div style="text-transform: uppercase; font-size: 0.8rem; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 5px;">Your Fatal Match Is:</div>
-        <h2 id="resultTitle">Movie Title</h2>
-        <div id="resultMeta" class="movie-meta"></div>
-    </div>
 </div>
 
 <script>
@@ -411,60 +327,6 @@
         metaHTML += `<div style="margin-top: 10px; font-style: italic; color: var(--text-muted);">${badges.join('  •  ')}</div>`;
         
         resultMeta.innerHTML = metaHTML;
-    });
-    let supabaseClient = null;
-    let fullMovieCount = 0;
-    let lastPickedMovieId = null;
-
-    const statusDiv = document.getElementById('status');
-    const decadeFilter = document.getElementById('decadeFilter');
-    const watchedFilter = document.getElementById('watchedFilter');
-    const triedFilter = document.getElementById('triedFilter');
-    const pickBtn = document.getElementById('pickBtn');
-    const resultBox = document.getElementById('result');
-    const resultTitle = document.getElementById('resultTitle');
-    const resultMeta = document.getElementById('resultMeta');
-    // Setup View Vault Table Variables
-    const toggleVaultBtn = document.getElementById('toggleVaultBtn');
-    const vaultTableWrapper = document.getElementById('vaultTableWrapper');
-    const vaultTableBody = document.getElementById('vaultTableBody');
-
-    // Click handler to toggle the viewport table display
-    toggleVaultBtn.addEventListener('click', function() {
-        // Checking state with direct style values or fallbacks
-        if (vaultTableWrapper.style.display === 'block') {
-            vaultTableWrapper.style.display = 'none';
-            toggleVaultBtn.innerText = "👁️ View Full Horror Vault";
-            return;
-        }
-
-        if (moviesDataset.length === 0) {
-            alert("Database is still loading data rows. Please try again in a second!");
-            return;
-        }
-
-        let tableHTML = '';
-        
-        moviesDataset.forEach(movie => {
-            const isWatched = (movie.watched === true || ['yes', 'true', 'x'].includes(String(movie.watched || '').toLowerCase().trim()));
-            const isTried = (movie.triedandtrue === true || ['yes', 'true', 'x'].includes(String(movie.triedandtrue || '').toLowerCase().trim()));
-            
-            const titleDisplay = isTried ? `✨ <strong>${movie.title}</strong>` : movie.title;
-            
-            tableHTML += `
-                <tr>
-                    <td>${titleDisplay || 'Untitled'}</td>
-                    <td>${movie.year || '-'}</td>
-                    <td>${movie.director || '-'}</td>
-                    <td>${movie.filmproductioncompany || '-'}</td>
-                    <td>${isWatched ? '✅ Yes' : '🍿 No'}</td>
-                </tr>
-            `;
-        });
-
-        vaultTableBody.innerHTML = tableHTML;
-        vaultTableWrapper.style.display = 'block';
-        toggleVaultBtn.innerText = "🙈 Hide Full Horror Vault";
     });
 </script>
 
