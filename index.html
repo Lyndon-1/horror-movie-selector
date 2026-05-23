@@ -1,38 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Put this in the <head> of your index.html -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-  // Initialize the database connection
-  const supabase = supabase.createClient('https://rreqvdamizarmmxdwysd.supabase.co/rest/v1/', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyZXF2ZGFtaXphcm1teGR3eXNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDAyMjYsImV4cCI6MjA5NTExNjIyNn0.smuiGP-zcy7A9VwsPvOAi4DJ_TvYZF7rhQsoPQeYQjw');
-
-  async function getRandomMovie(selectedDecade, watchedStatus) {
-    // A quick, highly optimized database query
-    let query = supabase.from('movies').select('*');
-    
-    if (selectedDecade !== 'All') query = query.eq('decade', selectedDecade);
-    if (watchedStatus !== 'All') query = query.eq('watched', watchedStatus === 'watched');
-
-    const { data: movies, error } = await query;
-    
-    if (movies && movies.length > 0) {
-      // Pick your random winner from the returned database records
-      const randomMovie = movies[Math.floor(Math.random() * movies.length)];
-      console.log("Your horror match:", randomMovie.title);
-    }
-  }
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Offline Movie Picker</title>
+    <title>Horror Movie Database Picker</title>
+    <!-- Load the official Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --bg-color: #0f172a;
             --card-bg: #1e293b;
-            --accent-color: #6366f1;
-            --accent-hover: #4f46e5;
+            --accent-color: #ef4444; /* Blood red accent for horror movies */
+            --accent-hover: #dc2626;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --border-color: #334155;
@@ -62,6 +41,7 @@
             font-size: 2rem;
             border-bottom: 2px solid var(--border-color);
             padding-bottom: 10px;
+            color: #f87171;
         }
 
         .section {
@@ -73,19 +53,6 @@
             font-weight: 600;
             margin-bottom: 8px;
             color: var(--text-muted);
-        }
-
-        textarea {
-            width: 100%;
-            height: 100px;
-            background-color: var(--bg-color);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            padding: 10px;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-family: monospace;
-            resize: vertical;
         }
 
         .controls-grid {
@@ -137,15 +104,15 @@
             margin-top: 30px;
             padding: 25px;
             border-radius: 8px;
-            background: linear-gradient(135deg, #1e1b4b, #311042);
-            border: 1px solid #4338ca;
+            background: linear-gradient(135deg, #2d0606, #110202);
+            border: 1px solid #7f1d1d;
             text-align: center;
             display: none;
         }
 
         .result-box h2 {
             margin: 0 0 10px 0;
-            color: #f43f5e;
+            color: #f87171;
             font-size: 1.8rem;
         }
 
@@ -156,9 +123,9 @@
         }
 
         .status-msg {
-            color: #34d399;
+            color: #f87171;
             font-style: italic;
-            margin-top: 5px;
+            margin-bottom: 15px;
             font-weight: 500;
         }
     </style>
@@ -166,18 +133,13 @@
 <body>
 
 <div class="container">
-    <h1>🍿 Personal Movie Picker</h1>
+    <h1>🪓 The Horror Vault</h1>
     
-    <!-- Step 1: Paste Box (Replaces the broken network feature) -->
-    <div class="section">
-        <label for="csvPaste">1. Paste Spreadsheet Rows Here</label>
-        <textarea id="csvPaste" placeholder="Step 1: In Google Sheets, copy your cells (including headers) and paste them here..."></textarea>
-        <div id="status" class="status-msg">Waiting for data...</div>
-    </div>
+    <div id="status" class="status-msg">Initializing database connection...</div>
 
-    <!-- Step 2: Filters -->
+    <!-- Parameter Filters -->
     <div class="section">
-        <label>2. Set Movie Filters</label>
+        <label>Set Movie Filters</label>
         <div class="controls-grid">
             <div>
                 <label for="decadeFilter">Decade</label>
@@ -204,21 +166,27 @@
         </div>
     </div>
 
-    <button id="pickBtn" disabled>Pick a Random Movie</button>
+    <button id="pickBtn" disabled>Summon a Random Movie</button>
 
     <!-- Results Display -->
     <div id="result" class="result-box">
-        <div style="text-transform: uppercase; font-size: 0.8rem; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 5px;">Your Match Is:</div>
+        <div style="text-transform: uppercase; font-size: 0.8rem; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 5px;">Your Fatal Match Is:</div>
         <h2 id="resultTitle">Movie Title</h2>
         <div id="resultMeta" class="movie-meta"></div>
     </div>
 </div>
 
 <script>
-    let moviesDataset = [];
-    let headers = [];
+    // ==========================================
+    // 🎛️ UPDATE THESE DETAILS FROM SUPABASE
+    // ==========================================
+    const SUPABASE_URL = "https://rreqvdamizarmmxdwysd.supabase.co/rest/v1/";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyZXF2ZGFtaXphcm1teGR3eXNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDAyMjYsImV4cCI6MjA5NTExNjIyNn0.smuiGP-zcy7A9VwsPvOAi4DJ_TvYZF7rhQsoPQeYQjw";
+    // ==========================================
 
-    const pasteArea = document.getElementById('csvPaste');
+    let supabaseClient = null;
+    let fullMovieCount = 0;
+
     const statusDiv = document.getElementById('status');
     const decadeFilter = document.getElementById('decadeFilter');
     const watchedFilter = document.getElementById('watchedFilter');
@@ -228,75 +196,45 @@
     const resultTitle = document.getElementById('resultTitle');
     const resultMeta = document.getElementById('resultMeta');
 
-    // Automatically processes data the second you paste it in
-    pasteArea.addEventListener('input', function() {
-        const rawText = pasteArea.value.trim();
-        if (!rawText) {
-            statusDiv.innerText = "Waiting for data...";
-            disableControls();
+    // Run connection setup on load
+    window.addEventListener('DOMContentLoaded', async () => {
+        if (SUPABASE_URL.includes("YOUR_SUPABASE")) {
+            statusDiv.innerHTML = "❌ Setup Required: Paste your Supabase keys on lines 132 & 133 of the HTML code.";
             return;
         }
-        parseData(rawText);
+
+        try {
+            // Initialize the database client connection
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            statusDiv.innerText = "Querying horror library keys...";
+            
+            await fetchFilterOptions();
+        } catch (err) {
+            console.error(err);
+            statusDiv.innerText = "❌ Database initialization failed. Check your keys or console logs.";
+        }
     });
 
-    function parseData(text) {
-        // Splits by rows (handles both standard CSVs or Direct copy-pastes from Google Sheets tabs)
-        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-        if (lines.length < 2) {
-            statusDiv.innerText = "❌ Missing data rows. Make sure you copy the headers too!";
+    // Smart data query: pulling available decades dynamically straight from the database
+    async function fetchFilterOptions() {
+        // Query distinct values by selecting just the decade column
+        const { data, error, count } = await supabaseClient
+            .from('movies')
+            .select('decade', { count: 'exact' });
+
+        if (error) {
+            statusDiv.innerText = "❌ Error reading 'movies' table. Verify table name and permissions.";
+            console.error(error);
             return;
         }
 
-        // Detect if user copied directly from Google Sheets (Tabs) or a downloaded CSV (Commas)
-        const delimiter = lines[0].includes('\t') ? '\t' : ',';
+        fullMovieCount = count || data.length;
+        statusDiv.innerText = `🩸 Linked seamlessly! Vault contains ${fullMovieCount} horror films.`;
 
-        // Clean headers
-        headers = splitLine(lines[0], delimiter).map(h => h.trim().toLowerCase().replace(/[\s_]/g, ''));
-        moviesDataset = [];
-
-        for (let i = 1; i < lines.length; i++) {
-            const values = splitLine(lines[i], delimiter);
-            if (values.length !== headers.length) continue; 
-
-            let movie = {};
-            headers.forEach((header, index) => {
-                movie[header] = values[index].trim();
-            });
-            moviesDataset.push(movie);
-        }
-
-        statusDiv.innerText = `✅ Successfully read ${moviesDataset.length} movies! Filters are now updated.`;
-        populateDecadeDropdown();
-        enableControls();
-    }
-
-    function splitLine(line, delimiter) {
-        if (delimiter === '\t') return line.split('\t'); // Clean tab split for sheet copies
-        
-        let result = [];
-        let current = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-            let char = line[i];
-            if (char === '"' || char === "'") {
-                inQuotes = !inQuotes;
-            } else if (char === delimiter && !inQuotes) {
-                result.push(current);
-                current = '';
-            } else {
-                current += char;
-            }
-        }
-        result.push(current);
-        return result;
-    }
-
-    function populateDecadeDropdown() {
-        if (!headers.includes('decade')) return;
-
+        // Scrape unique values for dropdown layout setup
         const decades = new Set();
-        moviesDataset.forEach(movie => {
-            if (movie['decade']) decades.add(movie['decade']);
+        data.forEach(item => {
+            if (item.decade) decades.add(item.decade.trim());
         });
 
         decadeFilter.innerHTML = '<option value="All">All Decades</option>';
@@ -306,73 +244,88 @@
             opt.innerText = dec;
             decadeFilter.appendChild(opt);
         });
-    }
 
-    function enableControls() {
+        // Unlock input interfaces
         decadeFilter.disabled = false;
         watchedFilter.disabled = false;
         triedFilter.disabled = false;
         pickBtn.disabled = false;
     }
 
-    function disableControls() {
-        decadeFilter.disabled = true;
-        watchedFilter.disabled = true;
-        triedFilter.disabled = true;
+    // Database Filtering & Random selection mechanism
+    pickBtn.addEventListener('click', async function() {
         pickBtn.disabled = true;
-    }
+        pickBtn.innerText = "Summoning...";
+        statusDiv.innerText = "Querying live backend records...";
 
-    pickBtn.addEventListener('click', function() {
         const selDecade = decadeFilter.value;
         const selWatched = watchedFilter.value;
         const selTried = triedFilter.value;
 
-        const filteredMovies = moviesDataset.filter(movie => {
-            if (selDecade !== 'All' && movie['decade'] !== selDecade) return false;
+        // Build a precise server side data query filter based on UI selections
+        let query = supabaseClient.from('movies').select('*');
 
-            if (selWatched !== 'All') {
-                const wValue = (movie['watched'] || '').toLowerCase();
-                const isWatched = ['yes', 'true', 'x', 'watched'].includes(wValue);
-                if (selWatched === 'watched' && !isWatched) return false;
-                if (selWatched === 'unwatched' && isWatched) return false;
+        if (selDecade !== 'All') {
+            query = query.eq('decade', selDecade);
+        }
+
+        // Dynamic status matching checks (maps string input selectors to actual cell row data types)
+        if (selWatched !== 'All') {
+            if (selWatched === 'watched') {
+                query = query.in('watched', ['yes', 'true', 'x', 'watched', 'YES', 'True']);
+            } else {
+                // To fetch unwatched elements, look for empty values or an explicit "no" entry
+                query = query.or('watched.is.null,watched.ilike.no,watched.eq.');
             }
+        }
 
-            if (selTried !== 'All') {
-                const tValue = (movie['triedandtrue'] || '').toLowerCase();
-                const isTried = ['yes', 'true', 'x', 'tried and true'].includes(tValue);
-                if (selTried === 'yes' && !isTried) return false;
-                if (selTried === 'no' && isTried) return false;
+        if (selTried !== 'All') {
+            if (selTried === 'yes') {
+                query = query.in('triedandtrue', ['yes', 'true', 'x', 'tried and true', 'YES', 'True']);
+            } else {
+                query = query.or('triedandtrue.is.null,triedandtrue.ilike.no,triedandtrue.eq.');
             }
+        }
 
-            return true;
-        });
+        // Execute query request across the web
+        const { data: matchedMovies, error } = await query;
 
-        if (filteredMovies.length === 0) {
+        // Re-enable button
+        pickBtn.disabled = false;
+        pickBtn.innerText = "Summon a Random Movie";
+        statusDiv.innerText = `🩸 Connection active. Found ${matchedMovies ? matchedMovies.length : 0} matching entries.`;
+
+        if (error || !matchedMovies || matchedMovies.length === 0) {
             resultBox.style.display = 'block';
-            resultTitle.innerText = "❌ No Match Found";
-            resultMeta.innerHTML = "No movies match this exact combination of filters. Try loosening your selections!";
+            resultTitle.innerText = "❌ The Ritual Failed";
+            resultMeta.innerHTML = "No films in your database match this specific horrific criteria. Try broadening your scope!";
             return;
         }
 
-        const randomIndex = Math.floor(Math.random() * filteredMovies.length);
-        const selectedMovie = filteredMovies[randomIndex];
+        // Grab a uniform random array row index
+        const randomIndex = Math.floor(Math.random() * matchedMovies.length);
+        const selectedMovie = matchedMovies[randomIndex];
 
+        // Construct display meta tags safely safely mapping any empty rows to clean fallbacks
         resultBox.style.display = 'block';
-        resultTitle.innerText = selectedMovie['title'] || "Untitled Film";
+        resultTitle.innerText = selectedMovie.title || "Untitled Nightmare";
         
         let metaHTML = '';
-        if (selectedMovie['year']) metaHTML += `<strong>Year:</strong> ${selectedMovie['year']}<br>`;
-        if (selectedMovie['director']) metaHTML += `<strong>Director:</strong> ${selectedMovie['director']}<br>`;
-        if (selectedMovie['filmproductioncompany']) metaHTML += `<strong>Production:</strong> ${selectedMovie['filmproductioncompany']}<br>`;
+        if (selectedMovie.year) metaHTML += `<strong>Year:</strong> ${selectedMovie.year}<br>`;
+        if (selectedMovie.director) metaHTML += `<strong>Director:</strong> ${selectedMovie.director}<br>`;
+        if (selectedMovie.filmproductioncompany) metaHTML += `<strong>Studio:</strong> ${selectedMovie.filmproductioncompany}<br>`;
         
         let badges = [];
-        if (selectedMovie['triedandtrue'] && ['yes','true','x'].includes(selectedMovie['triedandtrue'].toLowerCase())) {
-            badges.push('✨ Tried & True');
+        const tVal = String(selectedMovie.triedandtrue || '').toLowerCase();
+        const wVal = String(selectedMovie.watched || '').toLowerCase();
+
+        if (['yes', 'true', 'x', 'tried and true'].includes(tVal)) {
+            badges.push('✨ Tried & True Cult Classic');
         }
-        if (selectedMovie['watched'] && ['yes','true','x'].includes(selectedMovie['watched'].toLowerCase())) {
-            badges.push('✅ Watched');
+        if (['yes', 'true', 'x', 'watched'].includes(wVal)) {
+            badges.push('✅ Survived (Watched)');
         } else {
-            badges.push('🍿 Unwatched');
+            badges.push('🍿 Fresh Prey (Unwatched)');
         }
         
         metaHTML += `<div style="margin-top: 10px; font-style: italic; color: var(--text-muted);">${badges.join('  •  ')}</div>`;
