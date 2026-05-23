@@ -412,6 +412,18 @@
         
         resultMeta.innerHTML = metaHTML;
     });
+    let supabaseClient = null;
+    let fullMovieCount = 0;
+    let lastPickedMovieId = null;
+
+    const statusDiv = document.getElementById('status');
+    const decadeFilter = document.getElementById('decadeFilter');
+    const watchedFilter = document.getElementById('watchedFilter');
+    const triedFilter = document.getElementById('triedFilter');
+    const pickBtn = document.getElementById('pickBtn');
+    const resultBox = document.getElementById('result');
+    const resultTitle = document.getElementById('resultTitle');
+    const resultMeta = document.getElementById('resultMeta');
     // Setup View Vault Table Variables
     const toggleVaultBtn = document.getElementById('toggleVaultBtn');
     const vaultTableWrapper = document.getElementById('vaultTableWrapper');
@@ -419,14 +431,13 @@
 
     // Click handler to toggle the viewport table display
     toggleVaultBtn.addEventListener('click', function() {
-        // If table is currently visible, hide it
+        // Checking state with direct style values or fallbacks
         if (vaultTableWrapper.style.display === 'block') {
             vaultTableWrapper.style.display = 'none';
             toggleVaultBtn.innerText = "👁️ View Full Horror Vault";
             return;
         }
 
-        // Build the table rows using the moviesDataset array downloaded on load
         if (moviesDataset.length === 0) {
             alert("Database is still loading data rows. Please try again in a second!");
             return;
@@ -434,12 +445,10 @@
 
         let tableHTML = '';
         
-        // Loop through all records and map them to standard HTML cells
         moviesDataset.forEach(movie => {
             const isWatched = (movie.watched === true || ['yes', 'true', 'x'].includes(String(movie.watched || '').toLowerCase().trim()));
             const isTried = (movie.triedandtrue === true || ['yes', 'true', 'x'].includes(String(movie.triedandtrue || '').toLowerCase().trim()));
             
-            // Add a little flavor badge text if the title is a Cult Classic
             const titleDisplay = isTried ? `✨ <strong>${movie.title}</strong>` : movie.title;
             
             tableHTML += `
@@ -453,7 +462,6 @@
             `;
         });
 
-        // Inject content and switch display flags
         vaultTableBody.innerHTML = tableHTML;
         vaultTableWrapper.style.display = 'block';
         toggleVaultBtn.innerText = "🙈 Hide Full Horror Vault";
