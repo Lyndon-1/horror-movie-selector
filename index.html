@@ -1,6 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Put this in the <head> of your index.html -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  // Initialize the database connection
+  const supabase = supabase.createClient('https://rreqvdamizarmmxdwysd.supabase.co/rest/v1/', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyZXF2ZGFtaXphcm1teGR3eXNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDAyMjYsImV4cCI6MjA5NTExNjIyNn0.smuiGP-zcy7A9VwsPvOAi4DJ_TvYZF7rhQsoPQeYQjw');
+
+  async function getRandomMovie(selectedDecade, watchedStatus) {
+    // A quick, highly optimized database query
+    let query = supabase.from('movies').select('*');
+    
+    if (selectedDecade !== 'All') query = query.eq('decade', selectedDecade);
+    if (watchedStatus !== 'All') query = query.eq('watched', watchedStatus === 'watched');
+
+    const { data: movies, error } = await query;
+    
+    if (movies && movies.length > 0) {
+      // Pick your random winner from the returned database records
+      const randomMovie = movies[Math.floor(Math.random() * movies.length)];
+      console.log("Your horror match:", randomMovie.title);
+    }
+  }
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Offline Movie Picker</title>
