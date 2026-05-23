@@ -269,23 +269,23 @@
             query = query.eq('decade', selDecade);
         }
 
-       // Dynamic status matching checks (Properly handles true boolean columns)
+       // Dynamic status matching checks (Clean, standard boolean and text matching)
         if (selWatched !== 'All') {
             if (selWatched === 'watched') {
-                // Look for literal boolean true, or the text variations just in case
-                query = query.or('watched.eq.true,watched.in.("yes","true","x","watched","YES","True")');
+                // Looks for literal true boolean OR string match 'yes'
+                query = query.or('watched.eq.true,watched.ilike.yes,watched.ilike.true,watched.ilike.x');
             } else {
-                // To fetch unwatched elements, look for boolean false, empty, or explicit "no"
+                // Looks for false boolean, empty fields, or text 'no'
                 query = query.or('watched.eq.false,watched.is.null,watched.ilike.no,watched.eq.');
             }
         }
 
         if (selTried !== 'All') {
             if (selTried === 'yes') {
-                // Look for literal boolean true, or the text variations
-                query = query.or('triedandtrue.eq.true,triedandtrue.in.("yes","true","x","tried and true","YES","True")');
+                // Looks for literal true boolean OR string match 'yes' / 'tried and true'
+                query = query.or('triedandtrue.eq.true,triedandtrue.ilike.yes,triedandtrue.ilike.true,triedandtrue.ilike.x,triedandtrue.ilike.tried and true');
             } else {
-                // To exclude, look for boolean false, empty, or explicit "no"
+                // Looks for false boolean, empty fields, or text 'no'
                 query = query.or('triedandtrue.eq.false,triedandtrue.is.null,triedandtrue.ilike.no,triedandtrue.eq.');
             }
         }
