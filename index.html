@@ -351,9 +351,9 @@
         // 3. DYNAMICALLY BUILD HOLIDAY OPTIONS (Maps explicitly to uppercase 'Holiday' column)
         const holidays = new Set();
         moviesDataset.forEach(item => {
-            if (item.Holiday) holidays.add(item.Holiday.trim());
+            if (item.holiday) holidays.add(item.holiday.trim());
         });
-        holidayFilter.innerHTML = '<option value="All">All Holidays</option>';
+        holidayFilter.innerHTML = '<option value="All">All holidays</option>';
         Array.from(holidays).sort().forEach(hol => {
             const opt = document.createElement('option');
             opt.value = hol; opt.innerText = hol; holidayFilter.appendChild(opt);
@@ -383,7 +383,7 @@
 
             if (selSubgenre !== 'All' && movie.subgenre !== selSubgenre) return false;
 
-            if (selHoliday !== 'All' && movie.Holiday !== selHoliday) return false;
+            if (selHoliday !== 'All' && movie.holiday !== selHoliday) return false;
 
             if (selGuilty !== 'All') {
                 const val = String(movie.guilty_pleasure || '').toLowerCase().trim();
@@ -433,7 +433,7 @@
         
         let metaHTML = '';
         if (selectedMovie.subgenre) metaHTML += `<strong>Subgenre:</strong> ${selectedMovie.subgenre}<br>`;
-        if (selectedMovie.Holiday) metaHTML += `<strong>🎄 Holiday:</strong> ${selectedMovie.Holiday}<br>`;
+        if (selectedMovie.holiday) metaHTML += `<strong>🎄 Holiday:</strong> ${selectedMovie.holiday}<br>`;
         if (selectedMovie.year) metaHTML += `<strong>Year:</strong> ${selectedMovie.year}<br>`;
         if (selectedMovie.director) metaHTML += `<strong>Director:</strong> ${selectedMovie.director}<br>`;
         if (selectedMovie.filmproductioncompany) metaHTML += `<strong>Studio:</strong> ${selectedMovie.filmproductioncompany}<br>`;
