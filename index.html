@@ -288,6 +288,8 @@
         statusDiv.innerText = "Querying live backend records...";
 
         const selDecade = decadeFilter.value;
+        const selSubgenre = subgenreFilter.value; 
+        const selGuilty = guiltyFilter.value;     
         const selWatched = watchedFilter.value;
         const selTried = triedFilter.value;
 
@@ -296,6 +298,15 @@
 
         if (selDecade !== 'All') {
             query = query.eq('decade', selDecade);
+        // NEW FEATURE: Subgenre Filter
+        if (selSubgenre !== 'All' && movie.subgenre !== selSubgenre) return false;
+
+        // NEW FEATURE: Guilty Pleasure Filter (Handles text or true/false booleans seamlessly!)
+        if (selGuilty !== 'All') {
+            const val = String(movie.guilty_pleasure || '').toLowerCase().trim();
+            const isGuilty = (movie.guilty_pleasure === true || ['yes', 'true', 'x'].includes(val));
+            if (selGuilty === 'yes' && !isGuilty) return false;
+            if (selGuilty === 'no' && isGuilty) return false;
         }
 
        // Dynamic status matching checks (Clean, standard boolean and text matching)
