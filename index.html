@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Horror Movie Database Picker</title>
-    <!-- Load the official Supabase Client Library -->
+    <title>Horror Movie Database Picker (Dev)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -29,7 +28,7 @@
 
         .container {
             width: 100%;
-            max-width: 800px;
+            max-width: 850px;
             background-color: var(--card-bg);
             padding: 30px;
             border-radius: 12px;
@@ -57,8 +56,8 @@
 
         .controls-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
             background: rgba(0, 0, 0, 0.2);
             padding: 20px;
             border-radius: 8px;
@@ -128,6 +127,61 @@
             margin-bottom: 15px;
             font-weight: 500;
         }
+
+        /* View Vault UI Styles */
+        .toggle-vault-container {
+            text-align: center;
+            margin-top: 25px;
+        }
+
+        .toggle-vault-link {
+            color: var(--text-muted);
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .toggle-vault-link:hover {
+            color: var(--accent-color);
+        }
+
+        .vault-table-wrapper {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: none;
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .vault-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+
+        .vault-table th {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            padding: 12px;
+            position: sticky;
+            top: 0;
+            border-bottom: 2px solid var(--border-color);
+            font-weight: 600;
+        }
+
+        .vault-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        .vault-table tr:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
     </style>
 </head>
 <body>
@@ -137,7 +191,6 @@
     
     <div id="status" class="status-msg">Initializing database connection...</div>
 
-    <!-- Parameter Filters -->
     <div class="section">
         <label>Set Movie Filters</label>
         <div class="controls-grid">
@@ -182,86 +235,101 @@
 
     <button id="pickBtn" disabled>Summon a Random Movie</button>
 
-        <!-- Results Display -->
     <div id="result" class="result-box">
         <div style="text-transform: uppercase; font-size: 0.8rem; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 5px;">Your Fatal Match Is:</div>
         <h2 id="resultTitle">Movie Title</h2>
         <div id="resultMeta" class="movie-meta"></div>
     </div>
+
+    <div class="toggle-vault-container">
+        <span id="toggleVaultBtn" class="toggle-vault-link">👁️ View Full Horror Vault</span>
+    </div>
+
+    <div id="vaultTableWrapper" class="vault-table-wrapper">
+        <table class="vault-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Subgenre</th>
+                    <th>Year</th>
+                    <th>Director</th>
+                    <th>Watched?</th>
+                </tr>
+            </thead>
+            <tbody id="vaultTableBody">
+                </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
     // ==========================================
-    // 🎛️DETAILS FROM SUPABASE
+    // 🎛️ UPDATE THESE DETAILS FROM SUPABASE
     // ==========================================
     const SUPABASE_URL = "https://rreqvdamizarmmxdwysd.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyZXF2ZGFtaXphcm1teGR3eXNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDAyMjYsImV4cCI6MjA5NTExNjIyNn0.smuiGP-zcy7A9VwsPvOAi4DJ_TvYZF7rhQsoPQeYQjw";
     // ==========================================
 
     let supabaseClient = null;
-    let fullMovieCount = 0;
+    let moviesDataset = []; 
+    let lastPickedMovieId = null;
 
     const statusDiv = document.getElementById('status');
     const decadeFilter = document.getElementById('decadeFilter');
+    const subgenreFilter = document.getElementById('subgenreFilter');
+    const guiltyFilter = document.getElementById('guiltyFilter');
     const watchedFilter = document.getElementById('watchedFilter');
     const triedFilter = document.getElementById('triedFilter');
     const pickBtn = document.getElementById('pickBtn');
     const resultBox = document.getElementById('result');
     const resultTitle = document.getElementById('resultTitle');
     const resultMeta = document.getElementById('resultMeta');
-    const subgenreFilter = document.getElementById('subgenreFilter');
-    const guiltyFilter = document.getElementById('guiltyFilter');
+    
+    const toggleVaultBtn = document.getElementById('toggleVaultBtn');
+    const vaultTableWrapper = document.getElementById('vaultTableWrapper');
+    const vaultTableBody = document.getElementById('vaultTableBody');
 
     // Run connection setup on load
     window.addEventListener('DOMContentLoaded', async () => {
-        if (SUPABASE_URL.includes("YOUR_SUPABASE")) {
-            statusDiv.innerHTML = "❌ Setup Required: Paste your Supabase keys on lines 132 & 133 of the HTML code.";
-            return;
-        }
-
         try {
-            // Initialize the database client connection
+            // Initialize database client connection wrapper
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            statusDiv.innerText = "Querying horror library keys...";
+            statusDiv.innerText = "Downloading entire horror vault...";
             
-            await fetchFilterOptions();
+            await loadMovieVault();
         } catch (err) {
             console.error(err);
-            statusDiv.innerText = "❌ Database initialization failed. Check your keys or console logs.";
+            statusDiv.innerText = "❌ Database initialization failed. Check your console logs.";
         }
     });
 
-    // Smart data query: pulling available decades dynamically straight from the database
-    async function fetchFilterOptions() {
-        // Query distinct values by selecting just the decade column
-        const { data, error, count } = await supabaseClient
+    // Fetches all movies cleanly once to prevent server query syntax issues
+    async function loadMovieVault() {
+        const { data, error } = await supabaseClient
             .from('movies')
-            .select('decade', { count: 'exact' });
+            .select('*');
 
         if (error) {
-            statusDiv.innerText = "❌ Error reading 'movies' table. Verify table name and permissions.";
+            statusDiv.innerText = "❌ Error reading 'movies' table. Verify table permissions.";
             console.error(error);
             return;
         }
 
-        fullMovieCount = count || data.length;
-        statusDiv.innerText = `🩸 Linked seamlessly! Vault contains ${fullMovieCount} horror films.`;
+        moviesDataset = data || [];
+        statusDiv.innerText = `🩸 Linked seamlessly! Vault contains ${moviesDataset.length} horror films.`;
 
-        // Scrape unique values for dropdown layout setup
+        // 1. DYNAMICALLY BUILD DECADE OPTIONS
         const decades = new Set();
-        data.forEach(item => {
+        moviesDataset.forEach(item => {
             if (item.decade) decades.add(item.decade.trim());
         });
-
         decadeFilter.innerHTML = '<option value="All">All Decades</option>';
         Array.from(decades).sort().forEach(dec => {
             const opt = document.createElement('option');
-            opt.value = dec;
-            opt.innerText = dec;
-            decadeFilter.appendChild(opt);
+            opt.value = dec; opt.innerText = dec; decadeFilter.appendChild(opt);
         });
 
-        // DYNAMICALLY BUILD SUBGENRE OPTIONS
+        // 2. DYNAMICALLY BUILD SUBGENRE OPTIONS
         const subgenres = new Set();
         moviesDataset.forEach(item => {
             if (item.subgenre) subgenres.add(item.subgenre.trim());
@@ -272,108 +340,133 @@
             opt.value = sub; opt.innerText = sub; subgenreFilter.appendChild(opt);
         });
 
-        // Unlock input interfaces
+        // Activate UI Dropdowns
         decadeFilter.disabled = false;
-        subgenreFilter.disabled = false;
+        subgenreFilter.disabled = false; 
         guiltyFilter.disabled = false;   
         watchedFilter.disabled = false;
         triedFilter.disabled = false;
         pickBtn.disabled = false;
     }
 
-    // Database Filtering & Random selection mechanism
-    pickBtn.addEventListener('click', async function() {
-        pickBtn.disabled = true;
-        pickBtn.innerText = "Summoning...";
-        statusDiv.innerText = "Querying live backend records...";
-
+    // Pure JavaScript local calculation randomizer
+    pickBtn.addEventListener('click', function() {
         const selDecade = decadeFilter.value;
         const selSubgenre = subgenreFilter.value; 
         const selGuilty = guiltyFilter.value;     
         const selWatched = watchedFilter.value;
         const selTried = triedFilter.value;
 
-        // Build a precise server side data query filter based on UI selections
-        let query = supabaseClient.from('movies').select('*');
+        const filteredMovies = moviesDataset.filter(movie => {
+            if (selDecade !== 'All' && movie.decade !== selDecade) return false;
 
-        if (selDecade !== 'All') {
-            query = query.eq('decade', selDecade);
-        // NEW FEATURE: Subgenre Filter
-        if (selSubgenre !== 'All' && movie.subgenre !== selSubgenre) return false;
+            if (selSubgenre !== 'All' && movie.subgenre !== selSubgenre) return false;
 
-        // NEW FEATURE: Guilty Pleasure Filter (Handles text or true/false booleans seamlessly!)
-        if (selGuilty !== 'All') {
-            const val = String(movie.guilty_pleasure || '').toLowerCase().trim();
-            const isGuilty = (movie.guilty_pleasure === true || ['yes', 'true', 'x'].includes(val));
-            if (selGuilty === 'yes' && !isGuilty) return false;
-            if (selGuilty === 'no' && isGuilty) return false;
-        }
-
-       // Dynamic status matching checks (Clean, standard boolean and text matching)
-        if (selWatched !== 'All') {
-            if (selWatched === 'watched') {
-                // Looks for literal true boolean OR string match 'yes'
-                query = query.or('watched.eq.true,watched.ilike.yes,watched.ilike.true,watched.ilike.x');
-            } else {
-                // Looks for false boolean, empty fields, or text 'no'
-                query = query.or('watched.eq.false,watched.is.null,watched.ilike.no,watched.eq.');
+            if (selGuilty !== 'All') {
+                const val = String(movie.guilty_pleasure || '').toLowerCase().trim();
+                const isGuilty = (movie.guilty_pleasure === true || ['yes', 'true', 'x'].includes(val));
+                if (selGuilty === 'yes' && !isGuilty) return false;
+                if (selGuilty === 'no' && isGuilty) return false;
             }
-        }
 
-        if (selTried !== 'All') {
-            if (selTried === 'yes') {
-                // Looks for literal true boolean OR string match 'yes' / 'tried and true'
-                query = query.or('triedandtrue.eq.true,triedandtrue.ilike.yes,triedandtrue.ilike.true,triedandtrue.ilike.x,triedandtrue.ilike.tried and true');
-            } else {
-                // Looks for false boolean, empty fields, or text 'no'
-                query = query.or('triedandtrue.eq.false,triedandtrue.is.null,triedandtrue.ilike.no,triedandtrue.eq.');
+            if (selWatched !== 'All') {
+                const val = String(movie.watched || '').toLowerCase().trim();
+                const isWatched = (movie.watched === true || ['yes', 'true', 'x', 'watched'].includes(val));
+                if (selWatched === 'watched' && !isWatched) return false;
+                if (selWatched === 'unwatched' && isWatched) return false;
             }
-        }
 
-        // Execute query request across the web
-        const { data: matchedMovies, error } = await query;
+            if (selTried !== 'All') {
+                const val = String(movie.triedandtrue || '').toLowerCase().trim();
+                const isTried = (movie.triedandtrue === true || ['yes', 'true', 'x', 'tried and true'].includes(val));
+                if (selTried === 'yes' && !isTried) return false;
+                if (selTried === 'no' && isTried) return false;
+            }
 
-        // Re-enable button
-        pickBtn.disabled = false;
-        pickBtn.innerText = "Summon a Random Movie";
-        statusDiv.innerText = `🩸 Connection active. Found ${matchedMovies ? matchedMovies.length : 0} matching entries.`;
+            return true;
+        });
 
-        if (error || !matchedMovies || matchedMovies.length === 0) {
+        if (filteredMovies.length === 0) {
             resultBox.style.display = 'block';
-            resultTitle.innerText = "❌ The Ritual Failed";
-            resultMeta.innerHTML = "No films in your database match this specific horrific criteria. Try broadening your scope!";
+            resultTitle.innerText = "❌ No Match Found";
+            resultMeta.innerHTML = "No films match this specific criteria. Try loosening your filters!";
             return;
         }
 
-        // Grab a uniform random array row index
-        const randomIndex = Math.floor(Math.random() * matchedMovies.length);
-        const selectedMovie = matchedMovies[randomIndex];
+        let randomIndex;
+        let selectedMovie;
+        let attempts = 0;
 
-        // Construct display meta tags safely mapping any empty rows to clean fallbacks
+        do {
+            randomIndex = Math.floor(Math.random() * filteredMovies.length);
+            selectedMovie = filteredMovies[randomIndex];
+            attempts++;
+        } while (selectedMovie.id === lastPickedMovieId && filteredMovies.length > 1 && attempts < 10);
+
+        lastPickedMovieId = selectedMovie.id;
+
         resultBox.style.display = 'block';
         resultTitle.innerText = selectedMovie.title || "Untitled Nightmare";
         
         let metaHTML = '';
+        if (selectedMovie.subgenre) metaHTML += `<strong>Subgenre:</strong> ${selectedMovie.subgenre}<br>`;
         if (selectedMovie.year) metaHTML += `<strong>Year:</strong> ${selectedMovie.year}<br>`;
         if (selectedMovie.director) metaHTML += `<strong>Director:</strong> ${selectedMovie.director}<br>`;
         if (selectedMovie.filmproductioncompany) metaHTML += `<strong>Studio:</strong> ${selectedMovie.filmproductioncompany}<br>`;
         
         let badges = [];
-        const tVal = String(selectedMovie.triedandtrue || '').toLowerCase();
-        const wVal = String(selectedMovie.watched || '').toLowerCase();
+        const tVal = String(selectedMovie.triedandtrue || '').toLowerCase().trim();
+        const wVal = String(selectedMovie.watched || '').toLowerCase().trim();
+        const gVal = String(selectedMovie.guilty_pleasure || '').toLowerCase().trim();
 
-        if (['yes', 'true', 'x', 'tried and true'].includes(tVal)) {
-            badges.push('✨ Tried & True Cult Classic');
+        if (selectedMovie.triedandtrue === true || ['yes', 'true', 'x'].includes(tVal)) {
+            badges.push('✨ Tried & True');
         }
-        if (['yes', 'true', 'x', 'watched'].includes(wVal)) {
-            badges.push('✅ Survived (Watched)');
+        if (selectedMovie.guilty_pleasure === true || ['yes', 'true', 'x'].includes(gVal)) {
+            badges.push('🍿 Guilty Pleasure');
+        }
+        if (selectedMovie.watched === true || ['yes', 'true', 'x'].includes(wVal)) {
+            badges.push('✅ Watched');
         } else {
-            badges.push('🍿 Fresh Prey (Unwatched)');
+            badges.push('🩸 Unwatched');
         }
         
         metaHTML += `<div style="margin-top: 10px; font-style: italic; color: var(--text-muted);">${badges.join('  •  ')}</div>`;
-        
         resultMeta.innerHTML = metaHTML;
+    });
+
+    // View Vault Click Event Handler Toggling 
+    toggleVaultBtn.addEventListener('click', function() {
+        if (vaultTableWrapper.style.display === 'block') {
+            vaultTableWrapper.style.display = 'none';
+            toggleVaultBtn.innerText = "👁️ View Full Horror Vault";
+            return;
+        }
+
+        let tableHTML = '';
+        moviesDataset.forEach(movie => {
+            const isWatched = (movie.watched === true || ['yes', 'true', 'x'].includes(String(movie.watched || '').toLowerCase().trim()));
+            const isTried = (movie.triedandtrue === true || ['yes', 'true', 'x'].includes(String(movie.triedandtrue || '').toLowerCase().trim()));
+            const isGuilty = (movie.guilty_pleasure === true || ['yes', 'true', 'x'].includes(String(movie.guilty_pleasure || '').toLowerCase().trim()));
+            
+            let titleDisplay = movie.title;
+            if (isTried) titleDisplay = `✨ <strong>${movie.title}</strong>`;
+            if (isGuilty && !isTried) titleDisplay = `🍿 <em>${movie.title}</em>`;
+            
+            tableHTML += `
+                <tr>
+                    <td>${titleDisplay || 'Untitled'}</td>
+                    <td>${movie.subgenre || '-'}</td>
+                    <td>${movie.year || '-'}</td>
+                    <td>${movie.director || '-'}</td>
+                    <td>${isWatched ? '✅ Yes' : '🍿 No'}</td>
+                </tr>
+            `;
+        });
+
+        vaultTableBody.innerHTML = tableHTML;
+        vaultTableWrapper.style.display = 'block';
+        toggleVaultBtn.innerText = "🙈 Hide Full Horror Vault";
     });
 </script>
 
