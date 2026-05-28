@@ -28,7 +28,7 @@
 
         .container {
             width: 100%;
-            max-width: 850px;
+            max-width: 900px;
             background-color: var(--card-bg);
             padding: 30px;
             border-radius: 12px;
@@ -56,7 +56,7 @@
 
         .controls-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 15px;
             background: rgba(0, 0, 0, 0.2);
             padding: 20px;
@@ -207,6 +207,12 @@
                 </select>
             </div>
             <div>
+                <label for="holidayFilter">Holiday</label>
+                <select id="holidayFilter" disabled>
+                    <option value="All">All Holidays</option>
+                </select>
+            </div>
+            <div>
                 <label for="guiltyFilter">Guilty Pleasure</label>
                 <select id="guiltyFilter" disabled>
                     <option value="All">Show All</option>
@@ -251,6 +257,7 @@
                 <tr>
                     <th>Title</th>
                     <th>Subgenre</th>
+                    <th>Holiday</th>
                     <th>Year</th>
                     <th>Director</th>
                     <th>Watched?</th>
@@ -277,6 +284,7 @@
     const statusDiv = document.getElementById('status');
     const decadeFilter = document.getElementById('decadeFilter');
     const subgenreFilter = document.getElementById('subgenreFilter');
+    const holidayFilter = document.getElementById('holidayFilter');
     const guiltyFilter = document.getElementById('guiltyFilter');
     const watchedFilter = document.getElementById('watchedFilter');
     const triedFilter = document.getElementById('triedFilter');
@@ -340,9 +348,21 @@
             opt.value = sub; opt.innerText = sub; subgenreFilter.appendChild(opt);
         });
 
+        // 3. DYNAMICALLY BUILD HOLIDAY OPTIONS (Maps explicitly to uppercase 'Holiday' column)
+        const holidays = new Set();
+        moviesDataset.forEach(item => {
+            if (item.Holiday) holidays.add(item.Holiday.trim());
+        });
+        holidayFilter.innerHTML = '<option value="All">All Holidays</option>';
+        Array.from(holidays).sort().forEach(hol => {
+            const opt = document.createElement('option');
+            opt.value = hol; opt.innerText = hol; holidayFilter.appendChild(opt);
+        });
+
         // Activate UI Dropdowns
         decadeFilter.disabled = false;
         subgenreFilter.disabled = false; 
+        holidayFilter.disabled = false;
         guiltyFilter.disabled = false;   
         watchedFilter.disabled = false;
         triedFilter.disabled = false;
@@ -353,6 +373,7 @@
     pickBtn.addEventListener('click', function() {
         const selDecade = decadeFilter.value;
         const selSubgenre = subgenreFilter.value; 
+        const selHoliday = holidayFilter.value;
         const selGuilty = guiltyFilter.value;     
         const selWatched = watchedFilter.value;
         const selTried = triedFilter.value;
@@ -361,6 +382,8 @@
             if (selDecade !== 'All' && movie.decade !== selDecade) return false;
 
             if (selSubgenre !== 'All' && movie.subgenre !== selSubgenre) return false;
+
+            if (selHoliday !== 'All' && movie.Holiday !== selHoliday) return false;
 
             if (selGuilty !== 'All') {
                 const val = String(movie.guilty_pleasure || '').toLowerCase().trim();
@@ -371,14 +394,14 @@
 
             if (selWatched !== 'All') {
                 const val = String(movie.watched || '').toLowerCase().trim();
-                const isWatched = (movie.watched === true || ['yes', 'true', 'x', 'watched'].includes(val));
+                const isWatched = (movie.watched === true || ['yes', 'true', 'x'].includes(val));
                 if (selWatched === 'watched' && !isWatched) return false;
                 if (selWatched === 'unwatched' && isWatched) return false;
             }
 
             if (selTried !== 'All') {
                 const val = String(movie.triedandtrue || '').toLowerCase().trim();
-                const isTried = (movie.triedandtrue === true || ['yes', 'true', 'x', 'tried and true'].includes(val));
+                const isTried = (movie.triedandtrue === true || ['yes', 'true', 'x'].includes(val));
                 if (selTried === 'yes' && !isTried) return false;
                 if (selTried === 'no' && isTried) return false;
             }
@@ -410,6 +433,7 @@
         
         let metaHTML = '';
         if (selectedMovie.subgenre) metaHTML += `<strong>Subgenre:</strong> ${selectedMovie.subgenre}<br>`;
+        if (selectedMovie.Holiday) metaHTML += `<strong>🎄 Holiday:</strong> ${selectedMovie.Holiday}<br>`;
         if (selectedMovie.year) metaHTML += `<strong>Year:</strong> ${selectedMovie.year}<br>`;
         if (selectedMovie.director) metaHTML += `<strong>Director:</strong> ${selectedMovie.director}<br>`;
         if (selectedMovie.filmproductioncompany) metaHTML += `<strong>Studio:</strong> ${selectedMovie.filmproductioncompany}<br>`;
@@ -457,6 +481,7 @@
                 <tr>
                     <td>${titleDisplay || 'Untitled'}</td>
                     <td>${movie.subgenre || '-'}</td>
+                    <td>${movie.Holiday || '-'}</td>
                     <td>${movie.year || '-'}</td>
                     <td>${movie.director || '-'}</td>
                     <td>${isWatched ? '✅ Yes' : '🍿 No'}</td>
