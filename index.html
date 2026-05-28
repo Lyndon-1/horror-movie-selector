@@ -148,6 +148,20 @@
                 </select>
             </div>
             <div>
+                <label for="subgenreFilter">Subgenre</label>
+                <select id="subgenreFilter" disabled>
+                    <option value="All">All Subgenres</option>
+                </select>
+            </div>
+            <div>
+                <label for="guiltyFilter">Guilty Pleasure</label>
+                <select id="guiltyFilter" disabled>
+                    <option value="All">Show All</option>
+                    <option value="yes">Only Guilty Pleasures</option>
+                    <option value="no">Exclude Guilty Pleasures</option>
+                </select>
+            </div>
+            <div>
                 <label for="watchedFilter">Watched Status</label>
                 <select id="watchedFilter" disabled>
                     <option value="All">Show All Movies</option>
@@ -195,6 +209,8 @@
     const resultBox = document.getElementById('result');
     const resultTitle = document.getElementById('resultTitle');
     const resultMeta = document.getElementById('resultMeta');
+    const subgenreFilter = document.getElementById('subgenreFilter');
+    const guiltyFilter = document.getElementById('guiltyFilter');
 
     // Run connection setup on load
     window.addEventListener('DOMContentLoaded', async () => {
@@ -245,8 +261,21 @@
             decadeFilter.appendChild(opt);
         });
 
+        // DYNAMICALLY BUILD SUBGENRE OPTIONS
+        const subgenres = new Set();
+        moviesDataset.forEach(item => {
+            if (item.subgenre) subgenres.add(item.subgenre.trim());
+        });
+        subgenreFilter.innerHTML = '<option value="All">All Subgenres</option>';
+        Array.from(subgenres).sort().forEach(sub => {
+            const opt = document.createElement('option');
+            opt.value = sub; opt.innerText = sub; subgenreFilter.appendChild(opt);
+        });
+
         // Unlock input interfaces
         decadeFilter.disabled = false;
+        subgenreFilter.disabled = false;
+        guiltyFilter.disabled = false;   
         watchedFilter.disabled = false;
         triedFilter.disabled = false;
         pickBtn.disabled = false;
@@ -309,7 +338,7 @@
         const randomIndex = Math.floor(Math.random() * matchedMovies.length);
         const selectedMovie = matchedMovies[randomIndex];
 
-        // Construct display meta tags safely safely mapping any empty rows to clean fallbacks
+        // Construct display meta tags safely mapping any empty rows to clean fallbacks
         resultBox.style.display = 'block';
         resultTitle.innerText = selectedMovie.title || "Untitled Nightmare";
         
